@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Virtual room</title>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/web-animations.min.js"></script>
+    <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
+    <script src="application.js"></script>
+    <script src="media.js"></script>
+    <script src="peer.js"></script>
+    <script src="peerconnection.js"></script>
+    <script src="util.js"></script>
+
+    <style lang="css">
+
+        body {
+            overflow-x: hidden;
+        }
+
+        #room {
+            border: black 1px solid;
+            position: relative;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .peer {
+            position: absolute;
+            z-index: 1;
+        }
+
+        .video-wrapper {
+            border: black 2px solid;
+            border-radius: 50%;
+            overflow: hidden;
+        }
+
+        .video-wrapper video {
+            object-fit: cover;
+            width: 100%;
+            height: 100%;
+        }
+
+        .under-wrapper video {
+            transform: translateX(-50%);
+        }
+    </style>
+
+</head>
+<body>
+<div style="display: flex; justify-content: space-between;">
+    <div style="flex: 1">
+        <h3 style="margin-block-start: auto;">Welcome to the virtual room!</h3>
+        Move around with mouse clicks. You can only hear those who are close to you.<br/>
+        Send questions in <a href="https://t.me/korobochka">Telegram</a> or to mail@korobochka.org
+
+    </div>
+    <div style="flex: 1; margin-left: 2em;">
+        <div class="select">
+            <label for="audioSource">Audio input source: </label><select id="audioSource"></select>
+        </div>
+
+        <div class="select">
+            <label for="audioOutput">Audio output destination: </label><select id="audioOutput"></select>
+        </div>
+
+        <div class="select">
+            <label for="videoSource">Video source: </label><select id="videoSource"></select>
+        </div>
+        <label for="muteSelf">Mute self: </label><input type="checkbox" id="muteSelf"/>
+        <label for="disableVideo">Disable own video: </label><input type="checkbox" id="disableVideo"/>
+        <input type="button" id="shareScreen" value="Share screen"/>
+    </div>
+</div>
+
+<div id="room"></div>
+
+
+<script>
+
+
+    const connectionDistance = 2000;
+    const maxDistance = 1000;
+    const minDistance = 400;
+    const minSize = 50;
+    const maxSize = 200;
+
+
+    const socket = io({
+        autoConnect: false
+    });
+
+    const media = new Media();
+    const application = new Application(media);
+
+
+    socket.on('init', async function (data) {
+        console.log('init');
+        console.dir(data);
+        application.init(data);
+    });
+
+    socket.on('updateClient', function (data) {
+        application.updatePeer(data);
+    });
+
+    socket.on('removeClient', function (id) {
+        console.log(`removeClient ${id}`);
+        application.removePeerById(id);
+    });
+
+    socket.on('relayCandidate', function ({from, connectionId, candidate}) {
+        //console.log(`Got candidate from ${from}`);
+        const peer = application.getPeerById(from);
+        if (!peer) return;
+        peer.relayCandidate(connectionId, candidate);
+    });
+
+    socket.on('video-offer', async function ({from, to, connectionId, description}) {
+        console.log(`Got video offer from ${from} to ${to}`);
+        const peer = application.getPeerById(from);
+        if (!peer) return;
+
+        peer.answerVideoCall(connectionId, description);
+    });
+
+    socket.on('video-answer', async function ({from, to, connectionId, description}) {
+        console.log(`Got video answer from ${from} to ${to}`);
+        const peer = application.getPeerById(from);
+        if (!peer) return;
+        await peer.processAnswer(connectionId, description);
+    });
+
+
+    async function start() {
+        await media.startVideo();
+
+        socket.open('/');
+    }
+
+    start();
+</script>
+
+</body>
+</html>
