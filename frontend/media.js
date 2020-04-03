@@ -54,7 +54,15 @@ class Media {
                 echoCancellation: true,
                 noiseSuppression: true
             },
-            video: {deviceId: videoSource ? {exact: videoSource} : undefined}
+            video: {
+                deviceId: videoSource ? {exact: videoSource} : undefined,
+                height: {
+                    ideal: maxSize * 2
+                },
+                width: {
+                    ideal: maxSize * 2
+                }
+            }
         };
         this.selfStream.setValue(await navigator.mediaDevices.getUserMedia(constraints));
         this.updateMutes();

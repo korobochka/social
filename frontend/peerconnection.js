@@ -121,6 +121,7 @@ class PeerConnection {
     }
 
     async processAnswer(description) {
+        if (this.pc === null) return;
         await this.pc.setRemoteDescription(new RTCSessionDescription(description));
     }
 
@@ -152,6 +153,7 @@ class PeerConnection {
     }
 
     relayCandidate(candidate) {
+        if (this.pc === null) return;
         return this.pc.addIceCandidate(new RTCIceCandidate(candidate));
     }
 }

@@ -48,7 +48,8 @@ class Client {
 }
 
 class Room {
-    constructor() {
+    constructor(id) {
+        this.roomId = id;
         this.width = 1500;
         this.height = 5000;
         this.clients = {};
@@ -58,6 +59,7 @@ class Room {
         const client = new Client(socket);
         this.clients[id] = client;
         client.send('init', {
+            roomId: this.roomId,
             id: id,
             width: this.width,
             height: this.height,
@@ -123,13 +125,42 @@ class Room {
     }
 }
 
-const room = new Room();
+const rooms = {};
+
+function getRoomId(str) {
+    const defaultRoomId = 'default';
+    try {
+        return new URL(str).searchParams.get('roomId') || defaultRoomId;
+    } catch (e) {
+        console.error(e);
+        return defaultRoomId;
+    }
+}
+
+function getRoom(id) {
+    let room = rooms[id];
+    if (!room) {
+        room = new Room(id);
+        rooms[id] = room;
+    }
+    return room;
+}
+
+function cleanupRoom(room) {
+    if (Object.keys(room.clients).length === 0) {
+        delete rooms[room.roomId];
+    }
+}
 
 io.on('connection', function (socket) {
-    console.log(`${new Date()} Connection ${socket.id}, total in room: ${Object.keys(room.clients).length + 1}`);
+    const roomId = getRoomId(socket.handshake.headers.referer);
+    const room = getRoom(roomId);
+    console.log(`${new Date()} Connection ${socket.id} to room '${roomId}', total in room: ${Object.keys(room.clients).length + 1}`);
 
     room.addClient(socket.id, socket);
     socket.on('disconnect', function () {
         room.removeClient(socket.id);
+        console.log(`${new Date()} Disconnect ${socket.id} from room '${roomId}', total in room: ${Object.keys(room.clients).length}`);
+        cleanupRoom(room);
     });
 });
