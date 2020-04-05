@@ -1,27 +1,19 @@
-class Application {
+class Application extends Subscriber {
     constructor(media) {
+        super();
         this.myId = null;
-        this.roomWidth = 0;
-        this.roomHeight = 0;
         this.peers = {};
         this.room = document.getElementById("room");
-        this.room.style.marginTop = `${maxSize / 2}px`;
+        this.room.style.marginTop = `100px`;
         this.media = media;
 
-        document.onkeydown = function (event) {
-            const key = event.key;
-            let offsetX = 0;
-            let offsetY = 0;
-            const offset = 10;
-            if (/*key === 'ArrowUp' ||*/ key === 'w') offsetY = -offset;
-            if (/*key === 'ArrowDown' ||*/ key === 's') offsetY = offset;
-            if (/*key === 'ArrowLeft' || */ key === 'a') offsetX = -offset;
-            if (/*key === 'ArrowRight' || */ key === 'd') offsetX = offset;
-            socket.emit('clientMove', {
-                offsetX,
-                offsetY
-            });
-        };
+        this.myLocation = new Observable({x: 0, y: 0});
+        this.mySharingScreen = new Observable(false);
+
+        this.roomDimensions = new Observable({width: 0, height: 0});
+        this.subscribe(this.roomDimensions, this.updateRoomDimensions.bind(this));
+
+        this.maxPeerSize = new Observable(200);
 
         this.room.onclick = (event) => {
             const rect = this.room.getBoundingClientRect();
@@ -30,14 +22,16 @@ class Application {
                 y: event.clientY - rect.top
             });
         };
+
+        document.getElementById("peerSize").onchange = (event) => {
+            this.maxPeerSize.setValue(Number.parseInt(event.target.value) || 200);
+        };
     }
 
     init({id, width, height, clients}) {
         console.log(`Init ${id}`);
         this.myId = id;
-        this.roomWidth = width;
-        this.roomHeight = height;
-        this.updateRoomDimensions();
+        this.roomDimensions.setValue({width: width, height: height});
         const knownIds = clients.map(c => c.id);
         Object.keys(this.peers).forEach(key => {
             if (!knownIds.includes(key)) this.removePeer(this.peers[key]);
@@ -48,9 +42,9 @@ class Application {
         });
     }
 
-    updateRoomDimensions() {
-        this.room.style.width = `${this.roomWidth}px`;
-        this.room.style.height = `${this.roomHeight}px`;
+    updateRoomDimensions({width, height}) {
+        this.room.style.width = `${width}px`;
+        this.room.style.height = `${height}px`;
     }
 
     updatePeer({id, location, sharingScreen}) {
@@ -58,31 +52,18 @@ class Application {
         if (!peer) {
             peer = this.createPeer(id, location);
         }
-        peer.sharingScreen = sharingScreen;
-        peer.move(location);
-
-        function updateOther(myself, other) {
-            const dist = distance(myself.location, other.location);
-            other.updateDistance(dist);
-            const shouldConnect = dist < connectionDistance;
-            other.updateMainConnection(shouldConnect);
-            other.updateScreenSharingConnection(shouldConnect && (myself.sharingScreen || other.sharingScreen));
-        }
-
-        if (peer.isMyself()) {
-            peer.setSize(maxSize, 1.0);
-            this.getOthers().forEach(other => updateOther(peer, other));
-        } else {
-            const myself = this.getMyself();
-            if (myself) {
-                updateOther(myself, peer);
-            }
-        }
+        peer.sharingScreen.setValue(sharingScreen);
+        peer.location.setValue(location);
     }
 
     createPeer(id, location) {
         const peer = new Peer(this, id, location);
         this.peers[id] = peer;
+
+        if (peer.isMyself()) {
+            peer.synchronize(peer.location, this.myLocation);
+            peer.synchronize(peer.sharingScreen, this.mySharingScreen);
+        }
 
         console.log(`New peer connected ${id} ${peer.isMyself() ? 'self' : ''}`);
         this.updateTitle();
@@ -107,13 +88,5 @@ class Application {
     removePeerById(peerId) {
         const peer = this.peers[peerId];
         if (peer) this.removePeer(peer);
-    }
-
-    getMyself() {
-        return this.peers[this.myId];
-    }
-
-    getOthers() {
-        return Object.values(this.peers).filter(peer => peer.id !== this.myId);
     }
 }

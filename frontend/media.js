@@ -56,12 +56,12 @@ class Media {
             },
             video: {
                 deviceId: videoSource ? {exact: videoSource} : undefined,
-                height: {
+                /*height: {
                     ideal: maxSize * 2
                 },
                 width: {
                     ideal: maxSize * 2
-                }
+                }*/
             }
         };
         this.selfStream.setValue(await navigator.mediaDevices.getUserMedia(constraints));

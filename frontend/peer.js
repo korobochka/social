@@ -1,13 +1,16 @@
 const VIDEO = 'video';
 const SCREEN = 'screen';
 
-class Peer {
+const connectionDistance = 2000;
+const maxDistance = 1000;
+const minDistance = 400;
+const minSize = 50;
+
+class Peer extends Subscriber {
     constructor(application, id, location) {
+        super();
         this.application = application;
         this.id = id;
-        this.location = location;
-        this.sharingScreen = false;
-        this.subscriptions = [];
 
         this.element = document.createElement("div");
         this.element.classList.add('peer');
@@ -19,9 +22,9 @@ class Peer {
         this.videoWrapper.appendChild(this.video);
         this.element.appendChild(this.videoWrapper);
 
-        this.subscriptions.push(this.application.media.soundOutput.subscribe(sinkId => {
+        this.subscribe(this.application.media.soundOutput, sinkId => {
             setSink(this.video, sinkId);
-        }));
+        });
 
         this.containerUnder = document.createElement("div");
         this.containerUnder.classList.add("under-wrapper");
@@ -32,13 +35,21 @@ class Peer {
         this.application.room.appendChild(this.element);
 
 
+        this.location = new Observable(location);
+        this.subscribe(this.location, this.move.bind(this));
+
+        this.sharingScreen = new Observable(false);
+
         this.peerConnections = {};
 
         if (this.isMyself()) {
-            this.subscriptions.push(this.application.media.selfStream.subscribe(stream => {
+            this.autorun([this.application.maxPeerSize], (maxSize) => {
+                this.setSize(maxSize, 1.0);
+            });
+            this.subscribe(this.application.media.selfStream, stream => {
                 this.video.srcObject = stream;
-            }));
-            this.subscriptions.push(this.application.media.screenStream.subscribe(stream => {
+            });
+            this.subscribe(this.application.media.screenStream, stream => {
                 socket.emit("clientScreenshare", {sharingScreen: stream !== null});
                 if (stream !== null) {
                     this.screenVideo.srcObject = stream;
@@ -47,10 +58,18 @@ class Peer {
                     this.resetScreenVideo();
                     this.screenVideo.style.maxWidth = `0px`;
                 }
-            }));
+            });
         } else {
             this.peerConnections[VIDEO] = new PeerConnection(this.application.myId, this.id, VIDEO, this.application.media.selfStream, this.video);
             this.peerConnections[SCREEN] = new PeerConnection(this.application.myId, this.id, SCREEN, this.application.media.screenStream, this.screenVideo, this.resetScreenVideo.bind(this));
+            this.autorun([this.application.myLocation, this.location, this.application.mySharingScreen, this.sharingScreen, this.application.maxPeerSize],
+                (myLocation, location, mySharing, sharing, maxSize) => {
+                    const dist = distance(myLocation, location);
+                    this.updateDistance(dist, maxSize);
+                    const shouldConnect = dist < connectionDistance;
+                    this.updateMainConnection(shouldConnect);
+                    this.updateScreenSharingConnection(shouldConnect && (mySharing || sharing));
+                });
         }
     }
 
@@ -69,7 +88,7 @@ class Peer {
     }
 
     destroy() {
-        this.subscriptions.forEach(unsub => unsub());
+        super.destroy();
         Object.values(this.peerConnections).forEach(pc => pc.destroy());
         this.element.remove();
     }
@@ -96,18 +115,10 @@ class Peer {
         ]);
     }
 
-    updateDistance(dist) {
-        if (dist > maxDistance) {
-            this.setSize(minSize, 0);
-            this.setVolume(0);
-        } else if (dist < minDistance) {
-            this.setSize(maxSize, 1);
-            this.setVolume(1);
-        } else {
-            const closeness = 1.0 - (dist - minDistance) / (maxDistance - minDistance);
-            this.setSize(minSize + (maxSize - minSize) * closeness, closeness);
-            this.setVolume(closeness);
-        }
+    updateDistance(dist, maxSize) {
+        const closeness = boundedCloseness(dist, minDistance, maxDistance);
+        this.setSize(minSize + (maxSize - minSize) * closeness, closeness);
+        this.setVolume(closeness);
     }
 
     setVolume(volume) {
@@ -150,8 +161,6 @@ class Peer {
     }
 
     move(toLocation) {
-        this.location = toLocation;
-
         this.animate('move', this.element, [
             ['left', '0px', `${toLocation.x}px`],
             ['top', '0px', `${toLocation.y}px`]

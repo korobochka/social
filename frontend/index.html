@@ -5,50 +5,15 @@
     <title>Virtual room</title>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script src="/web-animations.min.js"></script>
+    <script src="web-animations.min.js"></script>
     <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
+    <script src="util.js"></script>
     <script src="application.js"></script>
     <script src="media.js"></script>
     <script src="peer.js"></script>
     <script src="peerconnection.js"></script>
-    <script src="util.js"></script>
-
-    <style lang="css">
-
-        body {
-            overflow-x: hidden;
-        }
-
-        #room {
-            border: black 1px solid;
-            position: relative;
-            margin-left: auto;
-            margin-right: auto;
-        }
-
-        .peer {
-            position: absolute;
-            z-index: 1;
-        }
-
-        .video-wrapper {
-            border: black 2px solid;
-            border-radius: 50%;
-            overflow: hidden;
-        }
-
-        .video-wrapper video {
-            object-fit: cover;
-            width: 100%;
-            height: 100%;
-            transform: scaleX(-1);
-        }
-
-        .under-wrapper video {
-            transform: translateX(-50%);
-        }
-    </style>
-
+    <link rel="stylesheet" type="text/css" href="styles.css">
+    <link rel="icon" href="favicon.ico">
 </head>
 <body>
 <div style="display: flex; justify-content: space-between;">
@@ -73,6 +38,8 @@
         <label for="muteSelf">Mute self: </label><input type="checkbox" id="muteSelf"/>
         <label for="disableVideo">Disable own video: </label><input type="checkbox" id="disableVideo"/>
         <input type="button" id="shareScreen" value="Share screen"/>
+        <label for="peerSize">Size of videos: </label><input type="range" id="peerSize" min="100" max="500" value="200"
+                                                             step="25"/>
     </div>
 </div>
 
@@ -80,15 +47,6 @@
 
 
 <script>
-
-
-    const connectionDistance = 2000;
-    const maxDistance = 1000;
-    const minDistance = 400;
-    const minSize = 50;
-    const maxSize = 200;
-
-
     const socket = io({
         autoConnect: false
     });

@@ -66,9 +66,6 @@ class Room {
             clients: this.clientsDto()
         });
         this.moveClient(client, this.randomLocation());
-        socket.on('clientMove', data => {
-            this.moveClient(client, client.location.add(data.offsetX || 0, data.offsetY || 0));
-        });
         socket.on('clientTeleport', data => {
             this.moveClient(client, new Vector(data.x, data.y));
         });

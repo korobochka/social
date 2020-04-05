@@ -4,8 +4,9 @@ const config = {
     ]
 };
 
-class PeerConnection {
+class PeerConnection extends Subscriber {
     constructor(fromId, toId, connectionId, inputStreamObservable, outputElement, resetOutputElement) {
+        super();
         this.fromId = fromId;
         this.toId = toId;
         this.connectionId = connectionId;
@@ -14,17 +15,16 @@ class PeerConnection {
         this.outputElement = outputElement;
         this.resetOutputElement = resetOutputElement;
 
-        this.subscriptions = [];
         if (inputStreamObservable !== null) {
-            this.subscriptions.push(inputStreamObservable.subscribe((stream) => {
+            this.subscribe(inputStreamObservable, (stream) => {
                 this.inputStream = stream;
                 this.addTracks();
-            }));
+            });
         }
     }
 
     destroy() {
-        this.subscriptions.forEach(unsub => unsub());
+        super.destroy();
         this.closeConnection();
     }
 
