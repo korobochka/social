@@ -14,37 +14,59 @@
     <script src="peerconnection.js"></script>
     <link rel="stylesheet" type="text/css" href="styles.css">
     <link rel="icon" href="favicon.ico">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 </head>
 <body>
-<div style="display: flex; justify-content: space-between;">
-    <div style="flex: 1">
-        <h3 style="margin-block-start: auto;">Welcome to the virtual room!</h3>
-        Move around with mouse clicks. You can only hear those who are close to you.<br/>
-        Send questions in <a href="https://t.me/korobochka">Telegram</a> or to mail@korobochka.org
-
-    </div>
-    <div style="flex: 1; margin-left: 2em;">
-        <div class="select">
-            <label for="audioSource">Audio input source: </label><select id="audioSource"></select>
+<div class="header-container">
+    <div class="header">
+        <div class="header-title">
+            <div>Social</div>
+            <div class="round-button" id="header-button-info"><i class="material-icons">info</i></div>
         </div>
-
-        <div class="select">
-            <label for="audioOutput">Audio output destination: </label><select id="audioOutput"></select>
+        <div class="header-settings">
+            <div class="round-button" id="header-button-mic"><i class="material-icons">mic</i></div>
+            <div class="round-button" id="header-button-camera"><i class="material-icons">videocam</i></div>
+            <div class="round-button" id="header-button-settings"><i class="material-icons">settings</i></div>
         </div>
-
-        <div class="select">
-            <label for="videoSource">Video source: </label><select id="videoSource"></select>
-        </div>
-        <label for="muteSelf">Mute self: </label><input type="checkbox" id="muteSelf"/>
-        <label for="disableVideo">Disable own video: </label><input type="checkbox" id="disableVideo"/>
-        <input type="button" id="shareScreen" value="Share screen"/>
-        <label for="peerSize">Size of videos: </label><input type="range" id="peerSize" min="100" max="500" value="200"
-                                                             step="25"/>
     </div>
 </div>
 
-<div id="room"></div>
 
+<div class="overlay" id="overlay-info" hidden>
+    <div class="overlay-content">
+        <div class="intro">
+            <h3 style="margin-block-start: auto;">Welcome to the virtual room!</h3>
+            Move around with mouse clicks. You can only hear those who are close to you.<br/>
+            Send questions in <a href="https://t.me/korobochka">Telegram</a> or to social@korobochka.org
+        </div>
+    </div>
+</div>
+
+<div class="overlay" id="overlay-settings" hidden>
+    <div class="overlay-content">
+        <div class="settings">
+            <div class="select">
+                <label for="audioSource">Audio input source: </label><select id="audioSource"></select>
+            </div>
+
+            <div class="select">
+                <label for="audioOutput">Audio output destination: </label><select id="audioOutput"></select>
+            </div>
+
+            <div class="select">
+                <label for="videoSource">Video source: </label><select id="videoSource"></select>
+            </div>
+            <input type="button" id="shareScreen" value="Share screen"/>
+            <label for="peerSize">Size of videos: </label><input type="range" id="peerSize" min="100" max="500"
+                                                                 value="200"
+                                                                 step="25"/>
+        </div>
+    </div>
+</div>
+
+<div class="room-container">
+    <div id="room"></div>
+</div>
 
 <script>
     const socket = io({
@@ -92,14 +114,7 @@
         await peer.processAnswer(connectionId, description);
     });
 
-
-    async function start() {
-        await media.startVideo();
-
-        socket.open('/');
-    }
-
-    start();
+    application.start();
 </script>
 
 </body>

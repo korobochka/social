@@ -1,14 +1,20 @@
 class Application extends Subscriber {
     constructor(media) {
         super();
+        this.animate = animate.bind(this);
         this.myId = null;
         this.peers = {};
         this.room = document.getElementById("room");
-        this.room.style.marginTop = `100px`;
+        this.headerButtonInfo = document.getElementById("header-button-info");
+        this.headerButtonSettings = document.getElementById("header-button-settings");
+        this.overlayInfo = document.getElementById("overlay-info");
+        this.overlaySettings = document.getElementById("overlay-settings");
         this.media = media;
 
-        this.myLocation = new Observable({x: 0, y: 0});
-        this.mySharingScreen = new Observable(false);
+        this.myself = new Observable({
+            location: {x: 0, y: 0},
+            sharingScreen: false
+        });
 
         this.roomDimensions = new Observable({width: 0, height: 0});
         this.subscribe(this.roomDimensions, this.updateRoomDimensions.bind(this));
@@ -26,6 +32,41 @@ class Application extends Subscriber {
         document.getElementById("peerSize").onchange = (event) => {
             this.maxPeerSize.setValue(Number.parseInt(event.target.value) || 200);
         };
+
+        this.subscribe(this.myself, myself => {
+            this.animate('move', this.room, [
+                ['left', '0px', `-${myself.location.x}px`],
+                ['top', '0px', `-${myself.location.y}px`]
+            ]);
+        });
+
+        for (const overlay of document.getElementsByClassName("overlay")) {
+            overlay.onclick = (event) => {
+                if (event.target === overlay) hide(overlay);
+            };
+        }
+
+        this.headerButtonInfo.onclick = () => {
+            show(this.overlayInfo);
+        };
+
+        this.headerButtonSettings.onclick = () => {
+            show(this.overlaySettings);
+        };
+    }
+
+
+    async start() {
+        const seenInfo = storageGet('seenInfo', false);
+        storageSet('seenInfo', true);
+
+        if (!seenInfo) {
+            show(this.overlayInfo);
+        }
+
+        await media.startVideo();
+
+        socket.open('/');
     }
 
     init({id, width, height, clients}) {
@@ -61,8 +102,10 @@ class Application extends Subscriber {
         this.peers[id] = peer;
 
         if (peer.isMyself()) {
-            peer.synchronize(peer.location, this.myLocation);
-            peer.synchronize(peer.sharingScreen, this.mySharingScreen);
+            peer.synchronizeToObject({
+                location: peer.location,
+                sharingScreen: peer.sharingScreen
+            }, this.myself);
         }
 
         console.log(`New peer connected ${id} ${peer.isMyself() ? 'self' : ''}`);

@@ -50,8 +50,8 @@ class Client {
 class Room {
     constructor(id) {
         this.roomId = id;
-        this.width = 1500;
-        this.height = 5000;
+        this.width = 3000;
+        this.height = 3000;
         this.clients = {};
     }
 
@@ -152,12 +152,12 @@ function cleanupRoom(room) {
 io.on('connection', function (socket) {
     const roomId = getRoomId(socket.handshake.headers.referer);
     const room = getRoom(roomId);
-    console.log(`${new Date()} Connection ${socket.id} to room '${roomId}', total in room: ${Object.keys(room.clients).length + 1}`);
+    console.log(`Connection ${socket.id} to room '${roomId}', total in room: ${Object.keys(room.clients).length + 1}`);
 
     room.addClient(socket.id, socket);
     socket.on('disconnect', function () {
         room.removeClient(socket.id);
-        console.log(`${new Date()} Disconnect ${socket.id} from room '${roomId}', total in room: ${Object.keys(room.clients).length}`);
+        console.log(`Disconnect ${socket.id} from room '${roomId}', total in room: ${Object.keys(room.clients).length}`);
         cleanupRoom(room);
     });
 });

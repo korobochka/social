@@ -1,22 +1,45 @@
-class Media {
+class ButtonToggle {
+    constructor(element, iconEnabled, iconDisabled) {
+        this.element = element;
+        this.icon = this.element.querySelector("i.material-icons");
+        this.state = new Observable(false);
+
+        this.element.onclick = () => {
+            const state = !this.state.getValue();
+            this.icon.innerText = state ? iconDisabled : iconEnabled;
+            this.state.setValue(state);
+        };
+    }
+}
+
+
+class Media extends Subscriber {
     constructor() {
+        super();
         this.selfStream = new Observable(null);
         this.soundOutput = new Observable(null);
         this.screenStream = new Observable(null);
 
+        this.buttonMuteSelf = new ButtonToggle(document.getElementById("header-button-mic"), "mic", "mic_off");
+        this.buttonDisableCamera = new ButtonToggle(document.getElementById("header-button-camera"), "videocam", "videocam_off");
+
+        this.autorun([this.selfStream, this.buttonMuteSelf.state, this.buttonDisableCamera.state],
+            (selfStream, soundMuted, cameraDisabled) => {
+                if (selfStream) {
+                    selfStream.getAudioTracks().forEach(track => track.enabled = !soundMuted);
+                    selfStream.getVideoTracks().forEach(track => track.enabled = !cameraDisabled);
+                }
+            });
+
         this.audioInputSelect = document.querySelector('select#audioSource');
         this.audioOutputSelect = document.querySelector('select#audioOutput');
         this.videoSelect = document.querySelector('select#videoSource');
-        this.muteSelf = document.querySelector('input#muteSelf');
-        this.disableVideo = document.querySelector('input#disableVideo');
         this.selectors = [this.audioInputSelect, this.audioOutputSelect, this.videoSelect];
         this.audioOutputSelect.disabled = !('sinkId' in HTMLMediaElement.prototype);
 
         this.audioInputSelect.onchange = this.startVideo.bind(this);
         this.videoSelect.onchange = this.startVideo.bind(this);
         this.audioOutputSelect.onchange = this.changeAudioDestination.bind(this);
-        this.muteSelf.onchange = this.updateMutes.bind(this);
-        this.disableVideo.onchange = this.updateMutes.bind(this);
 
         this.shareScreen = document.querySelector('input#shareScreen');
         this.shareScreen.onclick = async () => {
@@ -65,19 +88,8 @@ class Media {
             }
         };
         this.selfStream.setValue(await navigator.mediaDevices.getUserMedia(constraints));
-        this.updateMutes();
 
         await this.getDevices();
-    }
-
-    updateMutes() {
-        const selfStream = this.selfStream.getValue();
-        if (!selfStream) return;
-        const muted = this.muteSelf.checked;
-        selfStream.getAudioTracks().forEach(track => track.enabled = !muted);
-
-        const videoDisabled = this.disableVideo.checked;
-        selfStream.getVideoTracks().forEach(track => track.enabled = !videoDisabled);
     }
 
     async getDevices() {

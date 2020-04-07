@@ -9,11 +9,11 @@ const minSize = 50;
 class Peer extends Subscriber {
     constructor(application, id, location) {
         super();
+        this.animate = animate.bind(this);
         this.application = application;
         this.id = id;
 
         this.element = document.createElement("div");
-        this.element.classList.add('peer');
 
         this.videoWrapper = document.createElement("div");
         this.videoWrapper.classList.add("video-wrapper");
@@ -36,13 +36,13 @@ class Peer extends Subscriber {
 
 
         this.location = new Observable(location);
-        this.subscribe(this.location, this.move.bind(this));
 
         this.sharingScreen = new Observable(false);
 
         this.peerConnections = {};
 
         if (this.isMyself()) {
+            this.element.classList.add('peer-myself');
             this.autorun([this.application.maxPeerSize], (maxSize) => {
                 this.setSize(maxSize, 1.0);
             });
@@ -60,15 +60,17 @@ class Peer extends Subscriber {
                 }
             });
         } else {
+            this.element.classList.add('peer-other');
             this.peerConnections[VIDEO] = new PeerConnection(this.application.myId, this.id, VIDEO, this.application.media.selfStream, this.video);
             this.peerConnections[SCREEN] = new PeerConnection(this.application.myId, this.id, SCREEN, this.application.media.screenStream, this.screenVideo, this.resetScreenVideo.bind(this));
-            this.autorun([this.application.myLocation, this.location, this.application.mySharingScreen, this.sharingScreen, this.application.maxPeerSize],
-                (myLocation, location, mySharing, sharing, maxSize) => {
-                    const dist = distance(myLocation, location);
+            this.autorun([this.application.myself, this.location, this.sharingScreen, this.application.maxPeerSize],
+                (myself, location, sharing, maxSize) => {
+                    this.move(location);
+                    const dist = distance(myself.location, location);
                     this.updateDistance(dist, maxSize);
                     const shouldConnect = dist < connectionDistance;
                     this.updateMainConnection(shouldConnect);
-                    this.updateScreenSharingConnection(shouldConnect && (mySharing || sharing));
+                    this.updateScreenSharingConnection(shouldConnect && (myself.sharingScreen || sharing));
                 });
         }
     }
@@ -128,36 +130,6 @@ class Peer extends Subscriber {
 
     isMyself() {
         return this.id === this.application.myId;
-    }
-
-    animate(animationName, element, definition) {
-        this.animations = this.animations || {};
-        const run = () => {
-            const def = {};
-            for (const d of definition) {
-                const name = d[0];
-                def[name] = [element.style[name] || d[1], d[2]];
-            }
-            const animation = element.animate(def, 500);
-            animation.onfinish = () => {
-                for (const d of definition) {
-                    const name = d[0];
-                    element.style[name] = d[2];
-                }
-                this.animations[animationName] = null;
-            };
-            return animation;
-        };
-        const existing = this.animations[animationName];
-        if (existing) {
-            const orig = existing.onfinish;
-            existing.onfinish = () => {
-                orig();
-                this.animations[animationName] = run();
-            };
-        } else {
-            this.animations[animationName] = run();
-        }
     }
 
     move(toLocation) {

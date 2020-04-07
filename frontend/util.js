@@ -153,4 +153,62 @@ class Subscriber {
     synchronize(observable, withAnother) {
         this.subscribe(observable, value => withAnother.setValue(value));
     }
+
+    synchronizeToObject(def, target) {
+        Object.entries(def).forEach(([key, observable]) => {
+            this.subscribe(observable, value => {
+                const current = Object.assign({}, target.getValue() || {});
+                current[key] = value;
+                target.setValue(current);
+            });
+        });
+    }
+}
+
+function animate(animationName, element, definition) {
+    this.animations = this.animations || {};
+    const run = () => {
+        const def = {};
+        for (const d of definition) {
+            const name = d[0];
+            def[name] = [element.style[name] || d[1], d[2]];
+        }
+        const animation = element.animate(def, 500);
+        animation.onfinish = () => {
+            for (const d of definition) {
+                const name = d[0];
+                element.style[name] = d[2];
+            }
+            this.animations[animationName] = null;
+        };
+        return animation;
+    };
+    const existing = this.animations[animationName];
+    if (existing) {
+        const orig = existing.onfinish;
+        existing.onfinish = () => {
+            orig();
+            this.animations[animationName] = run();
+        };
+    } else {
+        this.animations[animationName] = run();
+    }
+}
+
+function show(e) {
+    e.hidden = false;
+}
+
+function hide(e) {
+    e.hidden = true;
+}
+
+function storageGet(key, def) {
+    const item = localStorage.getItem(key);
+    if (item === null) return def;
+    return JSON.parse(item);
+}
+
+function storageSet(key, value) {
+    localStorage.setItem(key, JSON.stringify(value));
 }
